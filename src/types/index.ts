@@ -109,3 +109,15 @@ export interface WishlistItem {
   productId: string
   addedAt: string
 }
+
+export interface RegisteringUser{
+  fullname : string,
+  email : string,
+  phone : string,
+  password : string  
+}
+
+export interface LoginUser {
+  email : string,
+  password : string
+}
