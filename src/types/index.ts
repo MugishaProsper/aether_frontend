@@ -110,14 +110,30 @@ export interface WishlistItem {
   addedAt: string
 }
 
-export interface RegisteringUser{
-  fullname : string,
-  email : string,
-  phone : string,
-  password : string  
+export interface RegisteringUser {
+  fullname: string
+  email: string
+  phone: string
+  password: string
 }
 
 export interface LoginUser {
-  email : string,
-  password : string
+  email: string
+  password: string
+}
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: "visitor" | "buyer" | "seller" | "admin" | "super_admin"
+  avatar?: string
+  phone?: string
+  preferences?: {
+    theme: "light" | "dark"
+    notifications: boolean
+    language: string
+  }
+  createdAt?: string
+  updatedAt?: string
 }

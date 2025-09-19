@@ -1,10 +1,11 @@
 "use client"
 
-import { ReactNode } from "react"
-import { Provider } from "react-redux"
+import { ReactNode, useEffect } from "react"
+import { Provider, useDispatch } from "react-redux"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "next-themes"
 import { store } from "@/store"
+import { initializeAuth } from "@/store/slices/authSlice"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +20,18 @@ interface ProvidersProps {
   children: ReactNode
 }
 
+// Auth initializer component
+function AuthInitializer({ children }: { children: ReactNode }) {
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    // Initialize auth state from localStorage
+    dispatch(initializeAuth())
+  }, [dispatch])
+
+  return <>{children}</>
+}
+
 export function Providers({ children }: ProvidersProps) {
   return (
     <Provider store={store}>
@@ -29,7 +42,9 @@ export function Providers({ children }: ProvidersProps) {
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthInitializer>
+            {children}
+          </AuthInitializer>
         </ThemeProvider>
       </QueryClientProvider>
     </Provider>

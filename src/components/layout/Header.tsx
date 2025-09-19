@@ -3,13 +3,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { 
-  Search, 
-  ShoppingCart, 
-  User, 
-  Menu, 
-  X, 
-  Heart, 
+import {
+  Search,
+  ShoppingCart,
+  User,
+  Menu,
+  X,
+  Heart,
   Bell,
   Sparkles
 } from "lucide-react"
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAppSelector, useAppDispatch } from "@/hooks/redux"
 import { toggleCart } from "@/store/slices/cartSlice"
 import { setMobileMenuOpen, toggleSearch, toggleAIChat } from "@/store/slices/uiSlice"
+import { logoutUser } from "@/store/slices/authSlice"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -39,6 +40,15 @@ export default function Header() {
     if (searchQuery.trim()) {
       // Navigate to search results
       window.location.href = `/products?search=${encodeURIComponent(searchQuery)}`
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutUser()).unwrap()
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Logout failed:', error)
     }
   }
 
@@ -111,8 +121,8 @@ export default function Header() {
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               {unreadNotifications > 0 && (
-                <Badge 
-                  variant="destructive" 
+                <Badge
+                  variant="destructive"
                   className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
                 >
                   {unreadNotifications}
@@ -137,8 +147,8 @@ export default function Header() {
           >
             <ShoppingCart className="h-5 w-5" />
             {itemCount > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
               >
                 {itemCount}
