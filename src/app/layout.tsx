@@ -37,7 +37,7 @@ export default function RootLayout({
           </div>
           <ShoppingCart />
           <AIChatAssistant />
-          <PWAProvider />
+          {/* <PWAProvider /> */}
           <Toaster />
         </Providers>
       </body>
