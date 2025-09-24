@@ -112,6 +112,7 @@ export interface WishlistItem {
 
 export interface RegisteringUser {
   fullname: string
+  username : string
   email: string
   phone: string
   password: string

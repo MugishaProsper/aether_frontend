@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit"
-import { login, logout, getCurrentUser, updateProfile } from "@/services/auth.services"
+import { login, register, logout, getCurrentUser, updateProfile } from "@/services/auth.services"
 
 export interface User {
   id: string
@@ -42,6 +42,18 @@ export const loginUser = createAsyncThunk(
       return response
     } catch (error: any) {
       return rejectWithValue(error.message || 'Login failed')
+    }
+  }
+)
+
+export const registerUser = createAsyncThunk(
+  'auth/register',
+  async ({ fullname, username, email, phone, password } : { fullname : string, username : string, email : string, phone : string, password : string }, { rejectWithValue }) => {
+    try {
+      const response = await register({ registrationData: { fullname, username, email, phone, password } })
+      return response
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Registration failed')
     }
   }
 )
@@ -133,6 +145,25 @@ export const authSlice = createSlice({
         state.isAuthenticated = false
       })
 
+    builder
+      .addCase(registerUser.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.user = action.payload.user
+        state.isAuthenticated = true
+        state.error = null
+
+        // Store user data in localStorage
+        localStorage.setItem('user', JSON.stringify(action.payload.user))
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+        state.isAuthenticated = false
+      })
     // Logout
     builder
       .addCase(logoutUser.fulfilled, (state) => {
