@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAppDispatch, useAppSelector } from "@/hooks/redux"
-import { loginUser, clearError } from "@/store/slices/authSlice"
+import { loginUser, clearError, fetchCurrentUser } from "@/store/slices/authSlice"
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -26,11 +26,17 @@ export default function LoginPage() {
     dispatch(clearError())
 
     try {
+      // The actual authentication is handled via cookies
+      // The server will set the appropriate HTTP-only cookies
       await dispatch(loginUser({
         email: formData.email,
         password: formData.password
       })).unwrap()
 
+      // After successful login, fetch the current user to update the UI
+      // The API will automatically include the cookies
+      await dispatch(fetchCurrentUser())
+      
       // Redirect to dashboard or previous page
       window.location.href = "/"
     } catch (error: any) {

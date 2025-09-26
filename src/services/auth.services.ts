@@ -17,6 +17,7 @@ export async function register({ registrationData }: { registrationData: Registe
         const response = await api.post('/auth/register', registrationData)
 
         if (response.data.success) {
+            // The server will set the auth cookies
             return response.data.data
         } else {
             throw new Error(response.data.message || 'Registration failed')
@@ -32,13 +33,9 @@ export async function login({ loginData }: { loginData: LoginUser }) {
         const response = await api.post('/auth/login', loginData)
 
         if (response.data.success) {
-            const { user, accessToken, refreshToken } = response.data.data
-
-            // Store tokens in localStorage
-            localStorage.setItem('accessToken', accessToken)
-            localStorage.setItem('refreshToken', refreshToken)
-
-            return { user, accessToken, refreshToken }
+            // The server will set the auth cookies
+            // We still return the user data from the response
+            return { user: response.data.data.user }
         } else {
             throw new Error(response.data.message || 'Login failed')
         }
@@ -50,49 +47,26 @@ export async function login({ loginData }: { loginData: LoginUser }) {
 
 export async function logout() {
     try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        await api.post('/auth/logout', { refreshToken })
-
-        // Clear tokens from localStorage
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        // The server will clear the auth cookies
+        await api.post('/auth/logout', {})
+        
+        // Redirect to login page
+        if (typeof window !== 'undefined') {
+            window.location.href = '/auth/login';
+        }
 
         return { success: true }
     } catch (error: any) {
         console.error('Logout failed:', error)
-        // Even if logout fails on server, clear local tokens
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        // Even if logout fails, redirect to login
+        if (typeof window !== 'undefined') {
+            window.location.href = '/auth/login';
+        }
         return { success: true }
     }
 }
 
-export async function refreshToken() {
-    try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) {
-            throw new Error('No refresh token available')
-        }
-
-        const response = await api.post('/auth/refresh', { refreshToken })
-
-        if (response.data.success) {
-            const { accessToken, refreshToken: newRefreshToken } = response.data.data
-            localStorage.setItem('accessToken', accessToken)
-            localStorage.setItem('refreshToken', newRefreshToken)
-
-            return { accessToken, refreshToken: newRefreshToken }
-        } else {
-            throw new Error(response.data.message || 'Token refresh failed')
-        }
-    } catch (error: any) {
-        console.error('Token refresh failed:', error)
-        // Clear invalid tokens
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        handleApiError(error)
-    }
-}
+// No need for refreshToken function anymore as it's handled by the API interceptor
 
 export async function getCurrentUser(): Promise<User> {
     try {
@@ -105,7 +79,8 @@ export async function getCurrentUser(): Promise<User> {
         }
     } catch (error: any) {
         console.error('Get current user failed:', error)
-        handleApiError(error)
+        // Don't redirect here, let the calling component handle it
+        throw error;
     }
 }
 
@@ -135,7 +110,8 @@ export async function forgotPassword(email: string) {
         }
     } catch (error: any) {
         console.error('Forgot password failed:', error)
-        handleApiError(error)
+        // Don't redirect for forgot password, just show the error
+        throw error;
     }
 }
 
@@ -153,6 +129,7 @@ export async function resetPassword(token: string, newPassword: string) {
         }
     } catch (error: any) {
         console.error('Password reset failed:', error)
-        handleApiError(error)
+        // Don't redirect here, let the calling component handle it
+        throw error;
     }
 }

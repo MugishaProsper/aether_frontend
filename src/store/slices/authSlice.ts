@@ -92,7 +92,7 @@ export const updateUserProfile = createAsyncThunk(
       return rejectWithValue(error.message || 'Profile update failed')
     }
   }
-)
+);
 
 export const authSlice = createSlice({
   name: "auth",
@@ -104,141 +104,106 @@ export const authSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload
     },
-    // Initialize auth state from localStorage
-    initializeAuth: (state) => {
-      const token = localStorage.getItem('accessToken')
-      const userData = localStorage.getItem('user')
-
-      if (token && userData) {
-        try {
-          state.user = JSON.parse(userData)
-          state.isAuthenticated = true
-        } catch (error) {
-          // Clear invalid data
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('user')
-        }
+    // Initialize auth state - checks for existing session
+    initializeAuth: (state, action: PayloadAction<User | null>) => {
+      if (action.payload) {
+        state.user = action.payload;
+        state.isAuthenticated = true;
+      } else {
+        state.user = null;
+        state.isAuthenticated = false;
       }
-      state.isInitialized = true
+      state.isInitialized = true;
     },
   },
   extraReducers: (builder) => {
     // Login
     builder
       .addCase(loginUser.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.isLoading = true;
+        state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.isAuthenticated = true
-        state.error = null
-
-        // Store user data in localStorage
-        localStorage.setItem('user', JSON.stringify(action.payload.user))
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-        state.isAuthenticated = false
-      })
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isAuthenticated = false;
+        state.user = null;
+      });
 
+    // Register
     builder
       .addCase(registerUser.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.isLoading = true;
+        state.error = null;
       })
       .addCase(registerUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.isAuthenticated = true
-        state.error = null
-
-        // Store user data in localStorage
-        localStorage.setItem('user', JSON.stringify(action.payload.user))
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-        state.isAuthenticated = false
-      })
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isAuthenticated = false;
+      });
+
     // Logout
     builder
       .addCase(logoutUser.fulfilled, (state) => {
-        state.user = null
-        state.isAuthenticated = false
-        state.error = null
-
-        // Clear localStorage
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
+        state.user = null;
+        state.isAuthenticated = false;
+        state.error = null;
       })
       .addCase(logoutUser.rejected, (state, action) => {
         // Even if logout fails, clear local state
-        state.user = null
-        state.isAuthenticated = false
-        state.error = action.payload as string
-
-        // Clear localStorage
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-      })
+        state.user = null;
+        state.isAuthenticated = false;
+        state.error = action.payload as string;
+      });
 
     // Fetch current user
     builder
       .addCase(fetchCurrentUser.pending, (state) => {
-        state.isLoading = true
+        state.isLoading = true;
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload
-        state.isAuthenticated = true
-        state.error = null
-
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(action.payload))
+        state.isLoading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(fetchCurrentUser.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-        state.isAuthenticated = false
-        state.user = null
-
-        // Clear invalid tokens
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-      })
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isAuthenticated = false;
+        state.user = null;
+      });
 
     // Update profile
     builder
       .addCase(updateUserProfile.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.isLoading = true;
+        state.error = null;
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload
-        state.error = null
-
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(action.payload))
+        state.isLoading = false;
+        state.user = action.payload;
+        state.error = null;
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-      })
-  },
-})
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+  }
+});
 
-export const {
-  clearError,
-  setLoading,
-  initializeAuth,
-} = authSlice.actions
+export const { clearError, setLoading, initializeAuth } = authSlice.actions;
 
-export default authSlice.reducer
+export default authSlice.reducer;
