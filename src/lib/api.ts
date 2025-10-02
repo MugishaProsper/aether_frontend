@@ -51,25 +51,34 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean, _queueRequest?: boolean };
+        const originalRequest = error.config as InternalAxiosRequestConfig & { 
+            _retry?: boolean, 
+            _queueRequest?: boolean,
+            url?: string
+        };
         
         // Handle network errors
         if (error.code === 'ECONNABORTED') {
             return Promise.reject(new Error('Request timeout. Please check your internet connection.'));
         }
 
+        // Skip refresh token logic for login/refresh endpoints to prevent infinite loops
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/');
+        
         // Handle 401 Unauthorized responses
-        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
             // If we're already refreshing the token, queue the request
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
-                })
-                .then(token => {
-                    if (originalRequest.headers) {
-                        originalRequest.headers['Authorization'] = `Bearer ${token}`;
-                    }
-                    return api(originalRequest);
+                    failedQueue.push({ 
+                        resolve: (token: string) => {
+                            if (originalRequest.headers) {
+                                originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                            }
+                            resolve(api(originalRequest));
+                        }, 
+                        reject 
+                    });
                 })
                 .catch(err => {
                     return Promise.reject(err);
@@ -80,6 +89,12 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                // Clear any existing auth state before refreshing
+                if (typeof window !== 'undefined') {
+                    document.cookie = 'accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    document.cookie = 'refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                }
+
                 // Attempt to refresh the token
                 const response = await axios.post(
                     `${BASE_URL}/auth/refresh`,
@@ -90,36 +105,48 @@ api.interceptors.response.use(
                     }
                 );
 
-                if (response.status === 200) {
-                    // Process queued requests
-                    processQueue(null, response.data.accessToken);
+                if (response.data?.accessToken) {
+                    const { accessToken } = response.data;
                     
-                    // Update the Authorization header with the new token
+                    // Update the default authorization header
+                    api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+                    
+                    // Process queued requests
+                    processQueue(null, accessToken);
+                    
+                    // Update the Authorization header for the original request
                     if (originalRequest.headers) {
-                        originalRequest.headers['Authorization'] = `Bearer ${response.data.accessToken}`;
+                        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
                     }
                     
                     // Retry the original request with the new token
                     return api(originalRequest);
+                } else {
+                    throw new Error('No access token in refresh response');
+                }
+            } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+                processQueue(refreshError, null);
+                
+                // Clear auth state and redirect to login
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('user');
+                    document.cookie = 'accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    document.cookie = 'refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    
+                    // Only redirect if we're not already on the login page
+                    if (!window.location.pathname.includes('/auth/login')) {
+                        window.location.href = '/auth/login';
+                    }
                 }
                 
-                // If refresh failed, redirect to login
-                processQueue(new Error('Session expired. Please log in again.'), null);
-                if (typeof window !== 'undefined') {
-                    window.location.href = '/auth/login';
-                }
-                return Promise.reject(new Error('Session expired. Please log in again.'));
-            } catch (refreshError) {
-                processQueue(refreshError, null);
-                if (typeof window !== 'undefined') {
-                    window.location.href = '/auth/login';
-                }
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
             }
         }
 
+        // For other errors, just reject with the error
         return Promise.reject(error);
     }
 );

@@ -40,12 +40,33 @@ interface LoginResponse {
 
 export async function login({ loginData }: { loginData: LoginUser }): Promise<LoginResponse['data']> {
     try {
-        const response = await api.post<LoginResponse>('/auth/login', loginData);
+        // Clear any existing auth state before logging in
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            document.cookie = 'accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            document.cookie = 'refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        }
+
+        const response = await api.post<LoginResponse>('/auth/login', loginData, {
+            withCredentials: true // Ensure cookies are sent with the request
+        });
 
         if (response.data.success) {
-            // The server will set the auth cookies
-            // Return the response data including tokens
-            return response.data.data;
+            // The server should set the auth cookies
+            // Make sure the tokens are set in the response
+            if (response.data.data?.accessToken) {
+                // Set the Authorization header for subsequent requests
+                api.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.accessToken}`;
+                
+                // Store user data in localStorage if needed
+                if (response.data.data.user) {
+                    localStorage.setItem('user', JSON.stringify(response.data.data.user));
+                }
+                
+                return response.data.data;
+            } else {
+                throw new Error('Authentication tokens missing in response');
+            }
         } else {
             throw new Error(response.data.message || 'Login failed');
         }
@@ -80,14 +101,30 @@ export async function getCurrentUser(): Promise<User> {
     try {
         const response = await api.get('/auth/me')
 
+        if (response.status === 401) {
+            // If we get a 401, the session might be invalid
+            const error = new Error('Your session has expired. Please log in again.') as any;
+            error.status = 401;
+            throw error;
+        }
+
         if (response.data.success) {
-            return response.data.data
+            return response.data.data;
         } else {
-            throw new Error(response.data.message || 'Failed to get user profile')
+            const error = new Error(response.data.message || 'Failed to get user profile');
+            (error as any).status = response.status;
+            throw error;
         }
     } catch (error: any) {
-        console.error('Get current user failed:', error)
-        // Don't redirect here, let the calling component handle it
+        console.error('Get current user failed:', error);
+        if (error.response?.status === 401) {
+            // Clear any existing auth state
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('user');
+                document.cookie = 'accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                document.cookie = 'refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            }
+        }
         throw error;
     }
 }
