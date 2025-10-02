@@ -28,20 +28,30 @@ export async function register({ registrationData }: { registrationData: Registe
     }
 }
 
-export async function login({ loginData }: { loginData: LoginUser }) {
+interface LoginResponse {
+  success: boolean;
+  data: {
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  };
+  message: string;
+}
+
+export async function login({ loginData }: { loginData: LoginUser }): Promise<LoginResponse['data']> {
     try {
-        const response = await api.post('/auth/login', loginData)
+        const response = await api.post<LoginResponse>('/auth/login', loginData);
 
         if (response.data.success) {
             // The server will set the auth cookies
-            // We still return the user data from the response
-            return { user: response.data.data.user }
+            // Return the response data including tokens
+            return response.data.data;
         } else {
-            throw new Error(response.data.message || 'Login failed')
+            throw new Error(response.data.message || 'Login failed');
         }
     } catch (error: any) {
-        console.error('Login failed:', error)
-        handleApiError(error)
+        console.error('Login failed:', error);
+        return handleApiError(error);
     }
 }
 

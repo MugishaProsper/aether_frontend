@@ -4,9 +4,9 @@ import { ReactNode, useEffect } from "react"
 import { Provider, useDispatch } from "react-redux"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "next-themes"
-import { store } from "@/store"
-import { initializeAuth } from "@/store/slices/authSlice"
-import { AppDispatch } from "@/store"
+import { AppDispatch, store } from "@/store"
+import { setLoading, setUser } from "@/store/slices/authSlice"
+import { getCurrentUser } from "@/services/auth.services"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,11 +26,28 @@ function AuthInitializer({ children }: { children: ReactNode }) {
   const dispatch = useDispatch<AppDispatch>()
 
   useEffect(() => {
-    // Initialize auth state from localStorage
-    dispatch(initializeAuth())
-  }, [dispatch])
+    const initializeAuth = async () => {
+      try {
+        dispatch(setLoading(true));
+        const token = localStorage.getItem('token');
+        
+        if (token) {
+          const user = await getCurrentUser();
+          if (user) {
+            dispatch(setUser(user));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+      } finally {
+        dispatch(setLoading(false));
+      }
+    };
 
-  return <>{children}</>
+    initializeAuth();
+  }, [dispatch]);
+
+  return <>{children}</>;
 }
 
 export function Providers({ children }: ProvidersProps) {

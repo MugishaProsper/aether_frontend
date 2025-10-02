@@ -112,7 +112,7 @@ export interface WishlistItem {
 
 export interface RegisteringUser {
   fullname: string
-  username : string
+  username: string
   email: string
   phone: string
   password: string
@@ -121,12 +121,13 @@ export interface RegisteringUser {
 export interface LoginUser {
   email: string
   password: string
+  rememberMe?: boolean
 }
 
 export interface User {
   id: string
+  fullname: string
   email: string
-  name: string
   role: "visitor" | "buyer" | "seller" | "admin" | "super_admin"
   avatar?: string
   phone?: string

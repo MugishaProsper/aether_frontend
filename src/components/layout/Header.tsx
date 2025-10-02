@@ -161,7 +161,7 @@ export default function Header() {
             <Button variant="ghost" size="icon">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                 <span className="text-xs font-medium text-white">
-                  {user?.name?.charAt(0).toUpperCase()}
+                  {user?.fullname?.charAt(0).toUpperCase()}
                 </span>
               </div>
             </Button>

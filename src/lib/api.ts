@@ -17,6 +17,21 @@ const api = axios.create({
     }
 });
 
+// Track if we're already refreshing the token
+let isRefreshing = false;
+let failedQueue: Array<{resolve: (value: any) => void, reject: (reason?: any) => void}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Request interceptor to handle CSRF token if needed
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -34,26 +49,35 @@ api.interceptors.request.use(
 
 // Response interceptor for handling auth errors
 api.interceptors.response.use(
-    (response) => {
-        // Handle successful responses
-        if (response.status === 401) {
-            // If we get a 401, it means the user is not authenticated
-            // or the session has expired
-            return Promise.reject(new Error('Not authenticated'));
-        }
-        return response;
-    },
+    (response) => response,
     async (error: AxiosError) => {
-        // Handle network errors or other request failures
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean, _queueRequest?: boolean };
+        
+        // Handle network errors
         if (error.code === 'ECONNABORTED') {
             return Promise.reject(new Error('Request timeout. Please check your internet connection.'));
         }
 
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-
         // Handle 401 Unauthorized responses
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+            // If we're already refreshing the token, queue the request
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                })
+                .then(token => {
+                    if (originalRequest.headers) {
+                        originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    return api(originalRequest);
+                })
+                .catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
             originalRequest._retry = true;
+            isRefreshing = true;
 
             try {
                 // Attempt to refresh the token
@@ -67,19 +91,32 @@ api.interceptors.response.use(
                 );
 
                 if (response.status === 200) {
+                    // Process queued requests
+                    processQueue(null, response.data.accessToken);
+                    
+                    // Update the Authorization header with the new token
+                    if (originalRequest.headers) {
+                        originalRequest.headers['Authorization'] = `Bearer ${response.data.accessToken}`;
+                    }
+                    
                     // Retry the original request with the new token
                     return api(originalRequest);
                 }
                 
-                // If refresh failed, reject with the original error
+                // If refresh failed, redirect to login
+                processQueue(new Error('Session expired. Please log in again.'), null);
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/auth/login';
+                }
                 return Promise.reject(new Error('Session expired. Please log in again.'));
-                return api(originalRequest);
             } catch (refreshError) {
-                // If refresh fails, clear any auth state and redirect to login
+                processQueue(refreshError, null);
                 if (typeof window !== 'undefined') {
                     window.location.href = '/auth/login';
                 }
                 return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
             }
         }
 
