@@ -9,8 +9,12 @@ const api = axios.create({
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
     },
-    timeout: 10000, // 10 second timeout
-    withCredentials: true // This is essential for cookies to be sent with requests
+    timeout: 30000, // 30 second timeout
+    withCredentials: true, // This is essential for cookies to be sent with requests
+    validateStatus: (status) => {
+        // Don't reject on 401/403, we'll handle them in the interceptor
+        return status >= 200 && status < 500;
+    }
 });
 
 // Request interceptor to handle CSRF token if needed
@@ -30,8 +34,21 @@ api.interceptors.request.use(
 
 // Response interceptor for handling auth errors
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // Handle successful responses
+        if (response.status === 401) {
+            // If we get a 401, it means the user is not authenticated
+            // or the session has expired
+            return Promise.reject(new Error('Not authenticated'));
+        }
+        return response;
+    },
     async (error: AxiosError) => {
+        // Handle network errors or other request failures
+        if (error.code === 'ECONNABORTED') {
+            return Promise.reject(new Error('Request timeout. Please check your internet connection.'));
+        }
+
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         // Handle 401 Unauthorized responses
@@ -43,11 +60,19 @@ api.interceptors.response.use(
                 const response = await axios.post(
                     `${BASE_URL}/auth/refresh`,
                     {},
-                    { withCredentials: true } // Important: include credentials for refresh endpoint
+                    { 
+                        withCredentials: true,
+                        timeout: 10000 // Shorter timeout for refresh requests
+                    }
                 );
 
-                // The new access token should be in an HTTP-only cookie
-                // No need to handle it in the frontend
+                if (response.status === 200) {
+                    // Retry the original request with the new token
+                    return api(originalRequest);
+                }
+                
+                // If refresh failed, reject with the original error
+                return Promise.reject(new Error('Session expired. Please log in again.'));
                 return api(originalRequest);
             } catch (refreshError) {
                 // If refresh fails, clear any auth state and redirect to login

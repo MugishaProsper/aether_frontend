@@ -48,13 +48,11 @@ export async function login({ loginData }: { loginData: LoginUser }) {
 export async function logout() {
     try {
         // The server will clear the auth cookies
-        await api.post('/auth/logout', {})
-        
+        await api.post('/auth/logout')        
         // Redirect to login page
         if (typeof window !== 'undefined') {
             window.location.href = '/auth/login';
         }
-
         return { success: true }
     } catch (error: any) {
         console.error('Logout failed:', error)

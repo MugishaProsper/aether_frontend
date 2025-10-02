@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "next-themes"
 import { store } from "@/store"
 import { initializeAuth } from "@/store/slices/authSlice"
+import { AppDispatch } from "@/store"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +23,7 @@ interface ProvidersProps {
 
 // Auth initializer component
 function AuthInitializer({ children }: { children: ReactNode }) {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch<AppDispatch>()
 
   useEffect(() => {
     // Initialize auth state from localStorage
