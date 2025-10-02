@@ -32,14 +32,34 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to handle CSRF token if needed
+// Helper function to get cookie value
+const getCookie = (name: string): string | null => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+};
+
+// Request interceptor to add auth token to requests
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        // If your API requires CSRF token, you can fetch it from cookies here
-        // const csrfToken = getCookie('XSRF-TOKEN');
-        // if (csrfToken) {
-        //     config.headers['X-XSRF-TOKEN'] = csrfToken;
-        // }
+        // Skip adding auth header for login/refresh endpoints
+        if (config.url?.includes('/auth/')) {
+            return config;
+        }
+
+        // Get the access token from cookies
+        const accessToken = getCookie('accessToken');
+        
+        // If we have a token, add it to the headers
+        if (accessToken && config.headers) {
+            config.headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        // Ensure we're sending credentials with every request
+        config.withCredentials = true;
+        
         return config;
     },
     (error) => {

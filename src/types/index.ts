@@ -1,10 +1,3 @@
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
-  error?: string
-}
-
 export interface PaginatedResponse<T> {
   data: T[]
   total: number
@@ -118,24 +111,52 @@ export interface RegisteringUser {
   password: string
 }
 
-export interface LoginUser {
-  email: string
-  password: string
-  rememberMe?: boolean
+// Base user data structure from the backend
+export interface User {
+  _id: string;
+  email: string;
+  fullname: string;
+  role: 'VISITOR' | 'BUYER' | 'SELLER' | 'ADMIN' | 'SUPER_ADMIN';
+  avatar?: string;
+  phone?: string;
+  preferences?: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+    language: string;
+  };
+  isEmailVerified?: boolean;
+  isActive?: boolean;
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
 }
 
-export interface User {
-  id: string
-  fullname: string
-  email: string
-  role: "visitor" | "buyer" | "seller" | "admin" | "super_admin"
-  avatar?: string
-  phone?: string
-  preferences?: {
-    theme: "light" | "dark"
-    notifications: boolean
-    language: string
-  }
-  createdAt?: string
-  updatedAt?: string
+// Login request payload
+export interface LoginUser {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+// API response wrapper
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string | null;
+  data?: T;
+  timestamp: string | null;
+}
+
+// Auth response after successful login
+export interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+// User preferences
+export interface UserPreferences {
+  theme: 'light' | 'dark';
+  notifications: boolean;
+  language: string;
 }

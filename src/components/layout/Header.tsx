@@ -42,7 +42,6 @@ export default function Header() {
       window.location.href = `/products?search=${encodeURIComponent(searchQuery)}`
     }
   }
-
   const handleLogout = async () => {
     try {
       await dispatch(logoutUser()).unwrap()
@@ -156,7 +155,7 @@ export default function Header() {
             )}
           </Button>
 
-          {/* User Menu */}
+          {/* User Menu */}          
           {isAuthenticated ? (
             <Button variant="ghost" size="icon">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">

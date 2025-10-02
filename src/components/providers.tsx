@@ -30,9 +30,9 @@ function AuthInitializer({ children }: { children: ReactNode }) {
       try {
         dispatch(setLoading(true));
         const token = localStorage.getItem('token');
-        
         if (token) {
           const user = await getCurrentUser();
+          console.log(user)
           if (user) {
             dispatch(setUser(user));
           }

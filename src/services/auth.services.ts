@@ -1,5 +1,5 @@
 import api from "@/lib/api"
-import { LoginUser, RegisteringUser, User } from "@/types"
+import { ApiResponse, LoginUser, RegisteringUser, User } from "@/types"
 
 // Helper function to handle API errors
 function handleApiError(error: any): never {
@@ -38,7 +38,7 @@ interface LoginResponse {
   message: string;
 }
 
-export async function login({ loginData }: { loginData: LoginUser }): Promise<LoginResponse['data']> {
+export async function login({ loginData }: { loginData: LoginUser }): Promise<ApiResponse> {
     try {
         // Clear any existing auth state before logging in
         if (typeof window !== 'undefined') {
@@ -48,25 +48,36 @@ export async function login({ loginData }: { loginData: LoginUser }): Promise<Lo
         }
 
         const response = await api.post<LoginResponse>('/auth/login', loginData, {
-            withCredentials: true // Ensure cookies are sent with the request
+            withCredentials: true, // Ensure cookies are sent with the request
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
         });
 
-        if (response.data.success) {
-            // The server should set the auth cookies
-            // Make sure the tokens are set in the response
-            if (response.data.data?.accessToken) {
-                // Set the Authorization header for subsequent requests
-                api.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.accessToken}`;
-                
-                // Store user data in localStorage if needed
-                if (response.data.data.user) {
-                    localStorage.setItem('user', JSON.stringify(response.data.data.user));
-                }
-                
-                return response.data.data;
-            } else {
+        if (response.data.success && response.data.data) {
+            const { accessToken, refreshToken, user } = response.data.data;
+            console.log(response.data.data)
+            
+            if (!accessToken || !refreshToken) {
                 throw new Error('Authentication tokens missing in response');
             }
+
+            // Set the Authorization header for subsequent requests
+            api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+            
+            // Store tokens in cookies
+            if (typeof window !== 'undefined') {
+                document.cookie = `accessToken=${accessToken}; Path=/; SameSite=Lax; Secure`;
+                document.cookie = `refreshToken=${refreshToken}; Path=/; SameSite=Lax; Secure`;
+                
+                // Store user data in localStorage
+                if (user) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                }
+            }
+            
+            return response.data;
         } else {
             throw new Error(response.data.message || 'Login failed');
         }
@@ -97,21 +108,46 @@ export async function logout() {
 
 // No need for refreshToken function anymore as it's handled by the API interceptor
 
-export async function getCurrentUser(): Promise<User> {
+export async function getCurrentUser(): Promise<ApiResponse<User>> {
     try {
-        const response = await api.get('/auth/me')
+        // Get the access token from cookies
+        const getCookie = (name: string): string | null => {
+            if (typeof document === 'undefined') return null;
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+            return null;
+        };
+
+        const accessToken = getCookie('accessToken');
+        
+        if (!accessToken) {
+            const error = new Error('No access token found') as any;
+            error.status = 401;
+            throw error;
+        }
+
+        const response = await api.get('/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json'
+            }
+        });
 
         if (response.status === 401) {
-            // If we get a 401, the session might be invalid
             const error = new Error('Your session has expired. Please log in again.') as any;
             error.status = 401;
             throw error;
         }
 
-        if (response.data.success) {
+        if (response.data?.success) {
+            // Update the stored user data
+            if (response.data.data && typeof window !== 'undefined') {
+                localStorage.setItem('user', JSON.stringify(response.data.data));
+            }
             return response.data.data;
         } else {
-            const error = new Error(response.data.message || 'Failed to get user profile');
+            const error = new Error(response.data?.message || 'Failed to get user profile');
             (error as any).status = response.status;
             throw error;
         }

@@ -33,12 +33,10 @@ export default function LoginPage() {
         password: formData.password
       })).unwrap()
 
-      // After successful login, fetch the current user to update the UI
-      // The API will automatically include the cookies
       await dispatch(fetchCurrentUser())
       
       // Redirect to dashboard or previous page
-      window.location.href = "/"
+      //window.location.href = "/"
     } catch (error: any) {
       console.error('Login error:', error)
       // Error is handled by Redux state

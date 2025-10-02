@@ -28,6 +28,7 @@ export const loginUser = createAsyncThunk(
       if (response?.accessToken) {
         api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
       }
+      console.log(response.user)
       return response?.user || null;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Login failed');
@@ -109,8 +110,14 @@ const authSlice = createSlice({
     });
     builder.addCase(fetchCurrentUser.fulfilled, (state, action) => {
       state.isLoading = false;
-      state.isAuthenticated = true;
-      state.user = action.payload;
+      if (action.payload.data) {
+        state.isAuthenticated = true;
+        state.user = action.payload.data;
+      } else {
+        state.isAuthenticated = false;
+        state.user = null;
+        state.error = 'Failed to load user data';
+      }
       state.isInitialized = true;
     });
     builder.addCase(fetchCurrentUser.rejected, (state, action) => {
